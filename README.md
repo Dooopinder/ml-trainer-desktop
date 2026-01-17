@@ -1,4 +1,4 @@
-ML Trainer Desktop App
+# ML Trainer Desktop App
 
 A native desktop (non-browser) machine learning application.
 
