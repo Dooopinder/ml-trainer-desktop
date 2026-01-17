@@ -12,7 +12,7 @@ Features:
 
 
 
-NOTE(if u want to run via source code)
+..NOTE(if u want to run via source code):
 Run (development):
 
 conda create -n ml-desktop python=3.10 -y
