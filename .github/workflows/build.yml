@@ -1,0 +1,74 @@
+name: Build (Win/Mac/Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # Linux: make sure Qt can run headless on CI
+      - name: Linux system deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller --noconsole --onefile --clean --name "ML-Trainer" main.py
+
+      - name: Package artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          powershell Compress-Archive -Path "dist\ML-Trainer.exe" -DestinationPath "ML-Trainer-windows.zip" -Force
+
+      - name: Package artifact (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "ML-Trainer" "../ML-Trainer-macOS.zip" || true
+          # If onefile produced a binary named ML-Trainer, zip that:
+          cd ..
+          if [ -f "dist/ML-Trainer" ]; then zip -j "ML-Trainer-macOS.zip" "dist/ML-Trainer"; fi
+
+      - name: Package artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tar -czf ML-Trainer-linux.tar.gz -C dist ML-Trainer
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ML-Trainer-${{ matrix.os }}
+          path: |
+            ML-Trainer-windows.zip
+            ML-Trainer-macOS.zip
+            ML-Trainer-linux.tar.gz
+            dist/*
+          if-no-files-found: ignore
